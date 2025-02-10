@@ -16,7 +16,8 @@ jobs:
   create_release:
     runs-on: ubuntu-latest
     outputs:
-      new_version: ${{ steps.semver.outputs.new_version }}
+      new_tag: ${{ steps.semver.outputs.new_tag }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -31,7 +32,7 @@ jobs:
 
       - name: Bump version and push tag
         id: semver
-        uses: anothrNick/github-tag-action@1.61.0
+        uses: anothrNick/github-tag-action@1.71.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEFAULT_BUMP: ${{ github.event.inputs.release_type }}
@@ -39,14 +40,13 @@ jobs:
           DRY_RUN: false
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
+        id: release
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          generate_release_notes: true
+          name: ${{ steps.semver.outputs.new_tag }}
           tag_name: ${{ steps.semver.outputs.new_tag }}
-          release_name: ${{ steps.semver.outputs.new_tag }}
-          draft: false
-          prerelease: false
 
   build_and_push:
     needs: create_release
@@ -70,19 +70,19 @@ jobs:
           context: .
           push: true
           tags: |
-            gabrielbiasi/my-app:${{ steps.create_release.outputs.new_version }}
+            gabrielbiasi/my-app:${{ needs.create_release.outputs.new_tag }}
             gabrielbiasi/my-app:latest
 
       - name: Package Helm chart
         run: |
-          helm package ./my-app --version ${{ steps.create_release.outputs.new_version }}
+          helm package ./my-app --version ${{ needs.create_release.outputs.new_tag }}
 
       - name: Upload Helm chart
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./my-app-${{ steps.create_release.outputs.new_version }}.tgz
-          asset_name: my-app-${{ steps.create_release.outputs.new_version }}.tgz
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./my-app-${{ needs.create_release.outputs.new_tag }}.tgz
+          asset_name: my-app-${{ needs.create_release.outputs.new_tag }}.tgz
           asset_content_type: application/gzip

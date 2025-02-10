@@ -1,0 +1,11 @@
+name: PR File Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  analyze-pr:
+    uses: ./.github/workflows/file-analysis-workflow.yml
+    with:
+      main-branch-name: 'main'

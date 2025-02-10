@@ -1,0 +1,78 @@
+name: File Change Analysis and PR Comment
+
+on:
+  workflow_call:
+    inputs:
+      main-branch-name:
+        required: true
+        type: string
+        description: "Name of the main branch (e.g., main, master)"
+
+jobs:
+  analyze-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.get-changes.outputs.changes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: get-changes
+        uses: tj-actions/changed-files@v35
+        with:
+          json: true
+
+      - name: Process changed files
+        id: process-changes
+        run: |
+          changes=$(echo '${{ steps.get-changes.outputs.all_changed_files }}' | jq '[.[] | {filename: .filename, operation: .status}]')
+          echo "changes=$changes" >> $GITHUB_OUTPUT
+
+  post-comment:
+    needs: analyze-changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check target branch
+        id: check-branch
+        run: |
+          target_branch="${{ github.base_ref }}"
+          main_branch="${{ inputs.main-branch-name }}"
+          if [ "$target_branch" = "$main_branch" ]; then
+            echo "is_main_branch=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_main_branch=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post comment with changes
+        if: steps.check-branch.outputs.is_main_branch == 'true'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const changes = ${{ needs.analyze-changes.outputs.changes }};
+            const changeList = changes.map(change => 
+              `- ${change.filename}: ${change.operation}`
+            ).join('\n');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Files changed in this PR:\n\n${changeList}`
+            })
+
+      - name: Post comment for incorrect branch
+        if: steps.check-branch.outputs.is_main_branch == 'false'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `⚠️ This pull request is not targeting the main branch (${inputs.main-branch-name}). Please update the target branch if necessary.`
+            })

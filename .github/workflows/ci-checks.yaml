@@ -1,0 +1,54 @@
+name: CI Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  docker-check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Lint Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: false
+        tags: gabrielbiasi/my-app:latest
+
+  helm-check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: v3.11.1
+
+    - name: Lint Helm Chart
+      run: helm lint ./my-app
+
+    - name: Template Helm Chart
+      run: |
+        helm template ./my-app > templated-chart.yaml
+        if [ $? -ne 0 ]; then
+          echo "Helm template failed"
+          exit 1
+        fi
+
+    - name: Validate Kubernetes manifests
+      uses: instrumenta/kubeval-action@master
+      with:
+        files: templated-chart.yaml

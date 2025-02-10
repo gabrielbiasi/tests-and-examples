@@ -29,7 +29,17 @@ jobs:
       - name: Process changed files
         id: process-changes
         run: |
-          changes=$(echo '${{ steps.get-changes.outputs.all_modified_files }}' | jq '[.[] | {filename: .filename, operation: .status}]')
+          added_files='${{ steps.changed-files.outputs.added_files }}'
+          deleted_files='${{ steps.changed-files.outputs.deleted_files }}'
+          modified_files='${{ steps.changed-files.outputs.modified_files }}'
+
+          result=$(jq -n --argjson added "$added_files" \
+                        --argjson deleted "$deleted_files" \
+                        --argjson modified "$modified_files" \
+            '$added | map({filename: ., operation: "added"}) +
+            $deleted | map({filename: ., operation: "deleted"}) +
+            $modified | map({filename: ., operation: "modified"})')
+
           echo "changes=$changes" >> $GITHUB_OUTPUT
 
   post-comment:

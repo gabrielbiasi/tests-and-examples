@@ -70,12 +70,12 @@ jobs:
           context: .
           push: true
           tags: |
-            gabrielbiasi/my-app:${{ needs.create_release.outputs.new_version }}
+            gabrielbiasi/my-app:${{ steps.create_release.outputs.new_version }}
             gabrielbiasi/my-app:latest
 
       - name: Package Helm chart
         run: |
-          helm package ./my-app --version ${{ needs.create_release.outputs.new_version }}
+          helm package ./my-app --version ${{ steps.create_release.outputs.new_version }}
 
       - name: Upload Helm chart
         uses: actions/upload-release-asset@v1
@@ -83,6 +83,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./my-app-${{ needs.create_release.outputs.new_version }}.tgz
-          asset_name: my-app-${{ needs.create_release.outputs.new_version }}.tgz
+          asset_path: ./my-app-${{ steps.create_release.outputs.new_version }}.tgz
+          asset_name: my-app-${{ steps.create_release.outputs.new_version }}.tgz
           asset_content_type: application/gzip

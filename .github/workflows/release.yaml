@@ -1,0 +1,88 @@
+name: Create Release and Build Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        type: choice
+        description: 'Type of release'
+        required: true
+        options:
+        - patch
+        - minor
+        - major
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.semver.outputs.new_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
+
+      - name: Bump version and push tag
+        id: semver
+        uses: anothrNick/github-tag-action@1.61.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: ${{ github.event.inputs.release_type }}
+          WITH_V: true
+          DRY_RUN: false
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.semver.outputs.new_tag }}
+          release_name: Release ${{ steps.semver.outputs.new_tag }}
+          draft: false
+          prerelease: false
+
+  build_and_push:
+    needs: create_release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            gabrielbiasi/my-app:${{ needs.create_release.outputs.new_version }}
+            gabrielbiasi/my-app:latest
+
+      - name: Package Helm chart
+        run: |
+          helm package ./my-app --version ${{ needs.create_release.outputs.new_version }}
+
+      - name: Upload Helm chart
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./my-app-${{ needs.create_release.outputs.new_version }}.tgz
+          asset_name: my-app-${{ needs.create_release.outputs.new_version }}.tgz
+          asset_content_type: application/gzip

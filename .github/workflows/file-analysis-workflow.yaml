@@ -40,7 +40,7 @@ jobs:
             $deleted | map({filename: ., operation: "deleted"}) +
             $modified | map({filename: ., operation: "modified"})')
 
-          echo "changes=$changes" >> $GITHUB_OUTPUT
+          echo "changes=$result" >> $GITHUB_OUTPUT
 
   post-comment:
     needs: analyze-changes

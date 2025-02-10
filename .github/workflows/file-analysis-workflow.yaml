@@ -33,7 +33,7 @@ jobs:
           deleted_files='${{ steps.changed-files.outputs.deleted_files }}'
           modified_files='${{ steps.changed-files.outputs.modified_files }}'
 
-          result=$(jq -n --argjson added "$added_files" \
+          result=$(jq -c -n --argjson added "$added_files" \
                         --argjson deleted "$deleted_files" \
                         --argjson modified "$modified_files" \
             '$added | map({filename: ., operation: "added"}) +

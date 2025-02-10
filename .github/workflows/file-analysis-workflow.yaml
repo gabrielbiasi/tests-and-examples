@@ -85,5 +85,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `⚠️ This pull request is not targeting the main branch (${inputs.main-branch-name}). Please update the target branch if necessary.`
+              body: `⚠️ This pull request is not targeting the main branch (${{ inputs.main-branch-name }}). Please update the target branch if necessary.`
             })

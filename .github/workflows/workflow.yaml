@@ -6,6 +6,6 @@ on:
 
 jobs:
   analyze-pr:
-    uses: ./.github/workflows/file-analysis-workflow.yml
+    uses: ./.github/workflows/file-analysis-workflow.yaml
     with:
       main-branch-name: 'main'

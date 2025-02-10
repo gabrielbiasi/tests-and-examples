@@ -12,7 +12,7 @@ jobs:
   analyze-changes:
     runs-on: ubuntu-latest
     outputs:
-      changes: ${{ steps.get-changes.outputs.changes }}
+      changes: ${{ steps.process-changes.outputs.changes }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3

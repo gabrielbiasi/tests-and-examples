@@ -24,11 +24,12 @@ jobs:
         uses: tj-actions/changed-files@v35
         with:
           json: true
+          escape_json: false
 
       - name: Process changed files
         id: process-changes
         run: |
-          changes=$(echo '${{ steps.get-changes.outputs.all_changed_files }}' | jq '[.[] | {filename: .filename, operation: .status}]')
+          changes=$(echo '${{ steps.get-changes.outputs.all_modified_files }}' | jq '[.[] | {filename: .filename, operation: .status}]')
           echo "changes=$changes" >> $GITHUB_OUTPUT
 
   post-comment:

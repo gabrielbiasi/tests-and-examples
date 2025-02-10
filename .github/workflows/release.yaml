@@ -86,3 +86,30 @@ jobs:
           asset_path: ./my-app-${{ needs.create_release.outputs.new_tag }}.tgz
           asset_name: my-app-${{ needs.create_release.outputs.new_tag }}.tgz
           asset_content_type: application/gzip
+
+  deploy_to_kubernetes:
+    needs: [create_release, build_and_push]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Spinnaker CLI
+        run: |
+          curl -LO https://storage.googleapis.com/spinnaker-artifacts/spin/$(curl -s https://storage.googleapis.com/spinnaker-artifacts/spin/latest)/linux/amd64/spin
+          chmod +x spin
+          sudo mv spin /usr/local/bin/spin
+
+      - name: Authenticate with Spinnaker
+        run: |
+          echo "${{ secrets.SPINNAKER_CONFIG }}" > ~/.spin/config
+        env:
+          SPINNAKER_CONFIG: ${{ secrets.SPINNAKER_CONFIG }}
+
+      - name: Trigger Spinnaker Pipeline
+        run: |
+          spin pipeline execute \
+            --name my-pipeline \
+            --application my-app \
+            --parameter version=${{ needs.create_release.outputs.new_version }} \
+            --parameter chartUrl=https://github.com/${{ github.repository }}/releases/download/${{ needs.create_release.outputs.new_version }}/my-app-${{ needs.create_release.outputs.new_version }}.tgz
